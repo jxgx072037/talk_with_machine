@@ -43,6 +43,23 @@ gridHelper.material.opacity = 0.5;
 gridHelper.rotation.x = Math.PI / 2;  // 将网格平面旋转90度，使其与Z轴垂直
 scene.add(gridHelper);
 
+// 创建一个xz平面
+const planeGeometry = new THREE.PlaneGeometry(100, 100); // 设置平面的宽度和高度
+const planeMaterial = new THREE.MeshBasicMaterial({
+  color: 0x000000, // 设置平面颜色为黑色
+  transparent: true, // 启用透明度
+  opacity: 0.5, // 设置透明度为0.5
+  side: THREE.DoubleSide, // 渲染平面的两面
+});
+const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+
+// 将平面旋转90度，使其与xz平面平行
+plane.rotation.x = Math.PI / 2;
+
+// 设置平面的y坐标，添加平面到场景中
+plane.position.y = -10;
+scene.add(plane);
+
 // 创建坐标轴 The X axis is red. The Y axis is green. The Z axis is blue.
 var axisHelper = new THREE.AxesHelper(250);
 scene.add(axisHelper);
@@ -58,7 +75,6 @@ socket.on('connect', () => {
 const points = [];
 
 const curve = new THREE.CatmullRomCurve3(points);
-
 const track_geometry = new THREE.BufferGeometry().setFromPoints(points);
 const track_material = new THREE.LineBasicMaterial({ color: 0xff0000 });
 const line = new THREE.Line(track_geometry, track_material);
@@ -66,21 +82,47 @@ line.frustumCulled = false; //关掉视椎体剔除
 scene.add(line);
 
 socket.on('message', (msg) => {
-    //console.log(msg.x, msg.y)
-    //平移正方体
-    cube.position.x += msg.x;
-    border.position.x += msg.x;
+    //让方块跟着后台返回的坐标运动
+    cube.position.x = msg.x;
+    border.position.x = msg.x;
+    cube.position.z = msg.z;
+    border.position.z = msg.z;
+    cube.position.y = msg.y;
+    border.position.y = msg.y;
 
-    cube.position.y = parseFloat(msg.y);
-    border.position.y = parseFloat(msg.y);
-    points.push(new THREE.Vector3(cube.position.x, cube.position.y))
-    //console.log(points)
+    points.push(new THREE.Vector3(cube.position.x, cube.position.y, cube.position.z))
 });
 
+//在下拉列表中选模式
+function showSelectedMode() {
+    var dropdown = document.getElementById("modeDropdown");
+    var selectedOption = dropdown.options[dropdown.selectedIndex];
+    var selectedValue = selectedOption.value;
+    var selectedText = selectedOption.text;
+
+    console.log("Selected value:", selectedValue);
+    console.log("Selected text:", selectedText);
+
+    return selectedValue
+}
+
+// 点击开始按钮之后，开始运动，如果点了stop，停止运动
+let start_switch = true;
+let start_info = ['sin', start_switch]
 document.querySelector('#start').onclick = () => {
-    const msg = document.querySelector('#message').value;
-    socket.emit('message', msg);
-    document.querySelector('#message').value = '';
+    start_info = [showSelectedMode(), start_switch]
+    if (start_switch) {
+        //切换到运行状态，按钮文案显示为STOP
+        socket.emit('start_button', start_info);
+        document.querySelector('#start').innerText = 'STOP';
+        start_switch = false;
+    } else {
+        //切换到停止状态，按钮文案显示为START
+        socket.emit('start_button', start_info);
+        document.querySelector('#start').innerText = 'START';
+        start_switch = true;
+    }
+
 };
 
 //定义切换视角后的渲染方法
@@ -94,7 +136,7 @@ const free_mode_render = () => {
     render.render(scene, camera);
 };
 
-//支持按钮切换视角
+//支持通过按钮切换视角
 let view_switch = true;
 document.querySelector('#view_change').onclick = () => {
 

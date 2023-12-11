@@ -1,0 +1,29 @@
+  <!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>PID</title>
+
+      <!--    websocket通信，注意加载版本匹配的socket.io.js, https://flask-socketio.readthedocs.io/en/latest/intro.html#version-compatibility-->
+      <script src="../static/socket.io.js"></script>  <!--    这里用的是4.6.0-->
+    </head>
+    <body>
+      <div id="app"></div>
+
+      <!--    解决加载three.js和扩展库报错的问题，https://blog.csdn.net/qq_52697994/article/details/131164740-->
+      <script type="importmap">
+        {
+          "imports": {
+            "three": "../static/node_modules/three/build/three.module.js",
+            "three/addons/": "../static/node_modules/three/examples/jsm/"
+          }
+        }
+      </script>
+      <script type="module" src="../static/main.js"></script>
+      <input type="text" id="message">
+      <button id="start">START</button>
+      <button id="view_change">Follow Mode NOW</button>
+      <ul id="messages"></ul>
+    </body>
+  </html>

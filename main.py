@@ -25,6 +25,7 @@ def index():
 
 # 定义画面中方块的位置
 agent_position = [0, 0, 0]
+start_switch = False
 
 
 # 生成正弦波
@@ -52,7 +53,7 @@ def gen_sin():
 
 
 # 模拟自由落体
-class Gravity_Simulation(ShowBase):
+class PhiscalSimulation(ShowBase):
     def __init__(self):
         # 禁用窗口渲染
         self.windowType = 'none'
@@ -77,65 +78,82 @@ class Gravity_Simulation(ShowBase):
         # 创建刚体
         shape = BulletBoxShape(Vec3(0.5, 0.5, 0.5))  # 创建一个立方体形状
         # shape = BulletSphereShape(0.5)  # 创建一个球形形状，半径为0.5
-        body = BulletRigidBodyNode('Box')
-        body.addShape(shape)
-        body.setMass(1.0)  # 设置质量
-        body.setFriction(1.0)  # 设置方块的摩擦系数
-        body.setRestitution(0.1)  # 设置方块的弹性系数
+        self.body = BulletRigidBodyNode('Box')
+        self.body.addShape(shape)
+        self.body.setMass(1.0)  # 设置质量
+        self.body.setFriction(1.0)  # 设置方块的摩擦系数
+        self.body.setRestitution(0.1)  # 设置方块的弹性系数
 
         # 将刚体添加到物理世界和场景图中
-        self.world.attachRigidBody(body)
-        self.boxNP = self.render.attachNewNode(body)
+        self.world.attachRigidBody(self.body)
+        self.boxNP = self.render.attachNewNode(self.body)
 
         # 设置方块的初始位置
         initial_position = Vec3(0, 0, 0)
         self.boxNP.setPos(initial_position)
 
-    def update_position(self):
-        time_step = 1 / 200.0  # 设置更新间隔，模拟现实世界刚体下坠
+        # 外部施加的合力
+        self.force = Vec3(0, 0, 0)
+
+    def send_position_to_frontend(self):
+        position = self.boxNP.getPos()
+        agent_position[0], agent_position[1], agent_position[2] = position.x, position.y, position.z
+        send({'x': agent_position[0], 'y': agent_position[1], 'z': agent_position[2]}, broadcast=True)
+
+    def pid(self, target_position):
+        time_step = 1 / 200.0  # 设置更新间隔
+        previous_error, integral = 0, Vec3(0, 0, 0)
+        global agent_position
         while True:
-            dt = globalClock.getDt()
-            self.world.doPhysics(dt)  # 更新物理世界
+            if start_switch:
+                kp, ki, kd = 10, 25, 250
+                error = Vec3(*target_position) - Vec3(*agent_position)
+                integral = integral + error * time_step
+                derivative = error-previous_error
+                self.force = error * kp + integral * ki + derivative * kd # Vec3和int相乘，int必须放后边
+                previous_error = error
+                self.body.applyCentralForce(self.force)
 
-            # 输出物体的质量、速度和位置
-            # body = self.boxNP.node()
-            # mass = body.getMass()
-            # velocity = body.getLinearVelocity()
-            position = self.boxNP.getPos()
-            print(position.x, position.y)
-            yield position.x, position.y, position.z
-            time.sleep(time_step)  # 添加延迟以使模拟速度与现实一致
+                dt = globalClock.getDt()
+                self.world.doPhysics(dt)  # 更新物理世界
+
+                self.send_position_to_frontend()
+                time.sleep(time_step)  # 添加延迟以使模拟速度与现实一致
+            else:
+                break
+
+    def free_falling(self):
+        time_step = 1 / 200.0  # 设置更新间隔，模拟现实世界刚体下坠
+        self.body.applyCentralForce(Vec3(0, 0, 0))
+        global agent_position
+        while True:
+            if start_switch:
+                dt = globalClock.getDt()
+                self.world.doPhysics(dt)  # 更新物理世界
+
+                self.send_position_to_frontend()
+                time.sleep(time_step)  # 添加延迟以使模拟速度与现实一致
+            else:
+                break
 
 
-gravity_simulation = Gravity_Simulation()
-free_falling_generator = gravity_simulation.update_position()
-
-
-def gen_free_falling():
-    global agent_position
-    while True:
-        if start_switch:
-            # print(next(free_falling_generator))
-            agent_position[0], agent_position[1], agent_position[2] = next(free_falling_generator)
-            send({'x': agent_position[0], 'y': agent_position[1], 'z': agent_position[2]}, broadcast=True)
-        else:
-            break
-
-
-start_switch = False
+phiscal_simulation = PhiscalSimulation()
 
 
 @socketio.on('start_button')
 def start(msg):
-    global start_switch
+    global start_switch, agent_position
     mode, start_switch = msg[:2]
 
     if mode == 'sin':
         gen_sin()
+    elif mode == 'free_falling':
+        phiscal_simulation.boxNP.setPos(Vec3(agent_position[0], agent_position[1], agent_position[2]))
+        phiscal_simulation.free_falling()
     elif mode == 'pid':
-        start_falling_position = Vec3(agent_position[0], agent_position[1], agent_position[2])
-        gravity_simulation.boxNP.setPos(start_falling_position)
-        gen_free_falling()
+        phiscal_simulation.boxNP.setPos(Vec3(agent_position[0], agent_position[1], agent_position[2]))
+        target_position = [5, 5, 5]
+        phiscal_simulation.pid(target_position)
 
 
 if __name__ == '__main__':

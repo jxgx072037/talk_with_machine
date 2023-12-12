@@ -156,6 +156,26 @@ document.querySelector('#view_change').onclick = () => {
 var controls = new OrbitControls(camera,render.domElement);//创建控件对象
 controls.addEventListener('change', free_mode_render);//监听鼠标、键盘事件，每次监测到事件，就重新渲染一次
 
+// 支持捕捉键盘按键
+document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('keydown', function(event) {
+    switch (event.key) {
+      case 'ArrowUp':
+        console.log('Up arrow key pressed');
+        break;
+      case 'ArrowDown':
+        console.log('Down arrow key pressed');
+        break;
+      case 'ArrowLeft':
+        console.log('Left arrow key pressed');
+        break;
+      case 'ArrowRight':
+        console.log('Right arrow key pressed');
+        break;
+    }
+  });
+});
+
 
 // 动画渲染
 function animate() {

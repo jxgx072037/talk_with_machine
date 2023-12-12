@@ -1,11 +1,13 @@
-from flask import Flask, send_file, render_template
-from flask_socketio import SocketIO, send
-import mimetypes, random, time, math
+import math
+import mimetypes
+import time
 
-# 引入物理引擎库panda3d
+# 引入Flask，物理引擎库panda3d
+from flask import Flask, render_template
+from flask_socketio import SocketIO, send
 from direct.showbase.ShowBase import ShowBase
+from panda3d.bullet import BulletWorld, BulletRigidBodyNode, BulletBoxShape, BulletPlaneShape
 from panda3d.core import Vec3
-from panda3d.bullet import BulletWorld, BulletRigidBodyNode, BulletBoxShape, BulletPlaneShape, BulletSphereShape
 
 # 强制指定返回给前端的文件类型
 mimetypes.add_type('text/css', '.css')
@@ -110,7 +112,7 @@ class PhiscalSimulation(ShowBase):
                 error = Vec3(*target_position) - Vec3(*agent_position)
                 integral = integral + error * time_step
                 derivative = error-previous_error
-                self.force = error * kp + integral * ki + derivative * kd # Vec3和int相乘，int必须放后边
+                self.force = error * kp + integral * ki + derivative * kd  # Vec3和int相乘，int必须放后边
                 previous_error = error
                 self.body.applyCentralForce(self.force)
 

@@ -81,15 +81,15 @@ const line = new THREE.Line(track_geometry, track_material);
 line.frustumCulled = false; //关掉视椎体剔除
 scene.add(line);
 
-socket.on('message', (msg) => {
+socket.on('update_cube_position', (msg) => {
     //让方块跟着后台返回的坐标运动
-    cube.position.x = msg.x;
-    border.position.x = msg.x;
-    cube.position.z = msg.z;
-    border.position.z = msg.z;
-    cube.position.y = msg.y;
-    border.position.y = msg.y;
+    border.position.x = cube.position.x = msg.x;
+    border.position.z = cube.position.z = msg.z;
+    border.position.y = cube.position.y = msg.y;
 
+    console.log(msg.data_showed)
+
+    //把运动轨迹的关键点也更新一下
     points.push(new THREE.Vector3(cube.position.x, cube.position.y, cube.position.z))
 });
 
@@ -196,3 +196,106 @@ function animate() {
 }
 
 animate();
+
+
+// 初始化图表
+function initChart() {
+    const ctx = document.getElementById('pidChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels:  Array.from({ length: 250 }, (_, i) => (i * 0.02).toFixed(1) + 's'),
+            datasets: [
+                {
+                    label: 'Error 误差',
+                    data: [],
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Integral 积分',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Derivative 微分',
+                    data: [],
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '时间（单位：秒）'
+                    },
+                }
+            },
+            animation: {
+                duration: 0 // 禁用动画
+            },
+            // 设置图表宽度
+            width: 800, // 设置一个合适的宽度，以适应所有历史数据
+            // 可以通过鼠标滚轮放大沿着X轴方向缩小图表
+            plugins: {
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'x',
+                        speed: 10,
+                    },
+                    zoom: {
+                        wheel: {
+                            enabled: true,
+                        },
+                        pinch: {
+                            enabled: true
+                        },
+                        mode: 'x',
+                        speed: 0.1
+                    }
+                }
+            }
+        }
+    });
+
+    return chart;
+}
+
+// 处理接收到的数据
+function handleData(chart, time, error, integral, derivative) {
+
+    chart.data.datasets[0].data.push(error);
+    chart.data.datasets[1].data.push(integral);
+    chart.data.datasets[2].data.push(derivative);
+
+    if (time > 5) {
+//        chart.data.labels.shift(); // 移除最旧的时间标签
+        chart.data.labels.push(time.toFixed(1)); // 添加新的时间标签，保留一位小数
+//        chart.data.datasets.forEach(dataset => dataset.data.shift());
+    }
+
+
+    chart.update();
+}
+
+// 画图表的主函数
+function draw_chart() {
+    const chart = initChart();
+
+
+    // 从Python后端接收数据
+    socket.on('pid_info_update', (msg) => {
+        let { time, error, integral, derivative, time_step } = msg;
+        handleData(chart, time, error[1], integral[1], derivative[1]);
+    });
+}
+
+draw_chart()();

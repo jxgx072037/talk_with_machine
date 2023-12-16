@@ -7,6 +7,8 @@
 
       <!--    websocket通信，注意加载版本匹配的socket.io.js, https://flask-socketio.readthedocs.io/en/latest/intro.html#version-compatibility-->
       <script src="../static/socket.io.js"></script>  <!--    这里用的是4.6.0-->
+      <script src="../static/chart.js"></script>  <!-- 引入画图用的chart.js-->
+      <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     </head>
     <body>
       <div id="app"></div>
@@ -28,5 +30,8 @@
       </select>
       <button id="start">START</button>
       <button id="view_change">Follow Mode NOW</button>
+      <div>
+        <canvas id="pidChart"></canvas>
+      </div>
     </body>
   </html>
